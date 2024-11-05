@@ -1,0 +1,43 @@
+---
+title: "weibull-plotting"
+author: "Shayla Triantafillou"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r}
+# Define the site number for the Okanogan River near Tonasket, WA
+site_number <- "12445000"
+
+# annual peak flow data
+peak_flow_data_ranked <- readNWISpeak(site_number) %>%
+  arrange(desc(peak_va))  %>% #Arrange in descending order of magnitude
+  mutate(rank = row_number(), # Assign ranks
+         n = n(),
+         return_period = (n + 1) / rank) # Calculate return period
+
+# Define return periods
+return_periods <- c(2, 10, 50)
+
+# Interpolate flow values for each target return period
+
+interpolated_flows <- tibble(Return_Period = return_periods) %>%
+  mutate(Flow = approx(x = peak_flow_data_ranked$return_period,
+                y = peak_flow_data_ranked$peak_va,
+                xout = return_periods, #where the interpolation takes place
+                rule = 2)$y) # rule argument determines how many points should be used in interpolation. This will use 2 points, one on the left and one on the right)
+
+# Plot
+peak_flow_data_ranked %>%
+  ggplot(aes(x = return_period, y = peak_va)) +
+  geom_point() +
+  scale_x_log10() +
+  scale_y_log10() +
+  labs(x = "Return period", y = "Discharge (cfs)") +
+  geom_point(aes(x = Return_Period, y = Flow), data = interpolated_flows, color = "red", shape = 18, size = 3)
+
+# Print table
+interpolated_flows %>%
+  kable(col.names = c("Return Period", "Discharge (cfs)"), booktabs = TRUE )
+```
+
